@@ -2,6 +2,7 @@ import meshes
 import poisson
 import elasticity
 import navierstokes
+import shallowwater
 import argparse as ap
 import time
 import cudolfinx as cufem
@@ -10,24 +11,26 @@ problems = {
   "poisson": poisson,
   "elasticity": elasticity,
   "navierstokes": navierstokes,
+  "shallowwater": shallowwater,
 }
 
 def main(problem, reps, degree, no_quadrature=False, cuda=True, res=100):
     """Perform benchmarking of cuDOLFINx assembly routines for a given linear form."""
 
-    # create mesh
-    # TODO add options for mesh size/type
-    domain = meshes.make_cubic_mesh(res=res)
-    
     problem_module = problems[problem]
-
-    a, L = problem_module.get_forms(domain, degree=degree)
+    needs_domain = getattr(problem_module, "NEEDS_DOMAIN", True)
+    # create mesh
+    if needs_domain:
+        domain = meshes.make_cubic_mesh(res=res)
+        a, L = problem_module.get_forms(domain, degree=degree)
+    else:
+        a, L = problem_module.get_forms(degree=degree, res=res)
 
     # need to assign a mesh somehow to the form
-
+    cuda_jit_args = {"debug": True, "verbose": True, "cachedir": ".cache"}
     if cuda:
-        a = cufem.form(a, form_compiler_options={"disable_tabulate_tensors": no_quadrature})
-        L = cufem.form(L, form_compiler_options={"disable_tabulate_tensors": no_quadrature})
+        a = cufem.form(a, cuda_jit_args=cuda_jit_args.copy(), form_compiler_options={"disable_tabulate_tensors": no_quadrature})
+        L = cufem.form(L, cuda_jit_args=cuda_jit_args.copy(), form_compiler_options={"disable_tabulate_tensors": no_quadrature})
         asm = cufem.CUDAAssembler()
         cuda_A = asm.create_matrix(a)
         cuda_b = asm.create_vector(L)
