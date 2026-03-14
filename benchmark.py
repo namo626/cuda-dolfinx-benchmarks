@@ -6,6 +6,7 @@ import shallowwater
 import argparse as ap
 import time
 import cudolfinx as cufem
+import tempfile
 
 problems = {
   "poisson": poisson,
@@ -14,7 +15,20 @@ problems = {
   "shallowwater": shallowwater,
 }
 
-def main(problem, reps, degree, no_quadrature=False, cuda=True, res=100):
+def load_file(fname):
+    with open(fname, "r") as fp:
+        return fp.read()
+
+def main(
+    problem,
+    reps,
+    degree,
+    no_quadrature=False,
+    cuda=True,
+    res=100,
+    vector_kernel=None,
+    matrix_kernel=None,
+    ):
     """Perform benchmarking of cuDOLFINx assembly routines for a given linear form."""
 
     problem_module = problems[problem]
@@ -29,8 +43,20 @@ def main(problem, reps, degree, no_quadrature=False, cuda=True, res=100):
     # need to assign a mesh somehow to the form
     cuda_jit_args = {"debug": True, "verbose": True, "cachedir": ".cache"}
     if cuda:
-        a = cufem.form(a, cuda_jit_args=cuda_jit_args.copy(), form_compiler_options={"disable_tabulate_tensors": no_quadrature})
-        L = cufem.form(L, cuda_jit_args=cuda_jit_args.copy(), form_compiler_options={"disable_tabulate_tensors": no_quadrature})
+        vector_jit_args = cuda_jit_args.copy()
+        matrix_jit_args = cuda_jit_args.copy()
+        if matrix_kernel is not None:
+            tmpdir = tempfile.TemporaryDirectory()
+            # force use of a temporary cachedir so compilation happens
+            # every time
+            matrix_jit_args["cachedir"] = tmpdir.name
+            matrix_jit_args["custom_assembly_src"] = load_file(matrix_kernel)
+        if vector_kernel is not None:
+            tmpdir = tempfile.TemporaryDirectory()
+            vector_jit_args["cachedir"] = tmpdir.name
+            vector_jit_args["custom_assembly_src"] = load_file(vector_kernel)
+        a = cufem.form(a, cuda_jit_args=matrix_jit_args, form_compiler_options={"disable_tabulate_tensors": no_quadrature})
+        L = cufem.form(L, cuda_jit_args=vector_jit_args, form_compiler_options={"disable_tabulate_tensors": no_quadrature})
         asm = cufem.CUDAAssembler()
         cuda_A = asm.create_matrix(a)
         cuda_b = asm.create_vector(L)
@@ -71,6 +97,8 @@ if __name__ == "__main__":
     parser.add_argument("--no-quadrature", action="store_true", default=False, help="Disable quadrature (assembly loop only).")
     parser.add_argument("--cpu", action="store_true", default=False, help="Test DOLFINx as a baseline (no cuDOLFINx)")
     parser.add_argument("--res", type=int, default=100, help="Number of cells in each direction for cubic mesh.")
+    parser.add_argument("--custom-matrix-kernel", type=str, help="File with custom matrix assembly kernel.")
+    parser.add_argument("--custom-vector-kernel", type=str, help="File with custom vector assembly kernel.")
     args = parser.parse_args()
 
     main(
@@ -80,4 +108,6 @@ if __name__ == "__main__":
         no_quadrature=args.no_quadrature,
         cuda = not args.cpu,
         res = args.res,
+        vector_kernel=args.custom_vector_kernel,
+        matrix_kernel=args.custom_matrix_kernel,
     )
