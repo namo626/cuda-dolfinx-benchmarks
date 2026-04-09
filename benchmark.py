@@ -28,6 +28,8 @@ def main(
     res=100,
     vector_kernel=None,
     matrix_kernel=None,
+    debug=False,
+    verbose=False,
     ):
     """Perform benchmarking of cuDOLFINx assembly routines for a given linear form."""
 
@@ -41,7 +43,7 @@ def main(
         a, L = problem_module.get_forms(degree=degree, res=res)
 
     # need to assign a mesh somehow to the form
-    cuda_jit_args = {"debug": True, "verbose": True, "cachedir": ".cache"}
+    cuda_jit_args = {"debug": debug, "verbose": verbose, "cachedir": ".cache"}
     if cuda:
         vector_jit_args = cuda_jit_args.copy()
         matrix_jit_args = cuda_jit_args.copy()
@@ -57,7 +59,7 @@ def main(
             vector_jit_args["custom_assembly_src"] = load_file(vector_kernel)
         a = cufem.form(a, cuda_jit_args=matrix_jit_args, form_compiler_options={"disable_tabulate_tensors": no_quadrature})
         L = cufem.form(L, cuda_jit_args=vector_jit_args, form_compiler_options={"disable_tabulate_tensors": no_quadrature})
-        asm = cufem.CUDAAssembler(debug=True, verbose=True)
+        asm = cufem.CUDAAssembler(debug=debug, verbose=verbose)
         cuda_A = asm.create_matrix(a)
         cuda_b = asm.create_vector(L)
         A = cuda_A.mat
@@ -99,6 +101,8 @@ if __name__ == "__main__":
     parser.add_argument("--res", type=int, default=100, help="Number of cells in each direction for cubic mesh.")
     parser.add_argument("--custom-matrix-kernel", type=str, help="File with custom matrix assembly kernel.")
     parser.add_argument("--custom-vector-kernel", type=str, help="File with custom vector assembly kernel.")
+    parser.add_argument("--debug", action="store_true", default=False, help="Enable debug output.")
+    parser.add_argument("--verbose", action="store_true", default=False, help="Enable verbose output.")
     args = parser.parse_args()
 
     main(
@@ -110,4 +114,6 @@ if __name__ == "__main__":
         res = args.res,
         vector_kernel=args.custom_vector_kernel,
         matrix_kernel=args.custom_matrix_kernel,
+        verbose=args.verbose,
+        debug=args.debug
     )
