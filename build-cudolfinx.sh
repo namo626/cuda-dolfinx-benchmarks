@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export DOLFINX_CMAKE_BUILD_TYPE="RelWithDebInfo"
+export DOLFINX_CMAKE_BUILD_TYPE="Release"
 # module purge
 # module load gcc/14.2.0
 # module load boost

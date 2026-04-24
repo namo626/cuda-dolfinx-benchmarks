@@ -31,9 +31,9 @@ function build_ffcx() (
 )
 
 function build_backends() (
-    [ -d ffcx-backends ] || git clone -b cuda-backend https://github.com/fenics-dolfiny/ffcx-backends ffcx-backends
+    [ -d ffcx-backends ] || git clone https://github.com/fenics-dolfiny/ffcx-backends ffcx-backends
     cd ffcx-backends
-    pip install --check-build-dependencies .
+    pip install --check-build-dependencies -e .
 )
 #build_ufl
 #build_basix
