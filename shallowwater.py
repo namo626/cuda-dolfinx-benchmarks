@@ -12,7 +12,7 @@ import numpy as np
 
 NEEDS_DOMAIN=False
 
-def get_forms(degree=2, res=100):
+def get_forms(degree=1, res=100):
     """Return shallow water forms for a given polynomial degree."""
     dt = 600
     t = 0
@@ -28,7 +28,7 @@ def get_forms(degree=2, res=100):
     y1=7200*res
 
     prob = SlopedBeachProblem(dt=dt,nt=nt,ny=ny,nx=nx,y1=y1,x1=x1,friction_law=fric_law,solution_var=sol_var,wd_alpha=0.36,wd=True)
-    p_degree = [1,1]
+    p_degree = [degree,degree]
     theta=1
     solver = Solvers.DGImplicit(prob,theta,p_degree=p_degree,make_tangent=True)
     L = solver.F
