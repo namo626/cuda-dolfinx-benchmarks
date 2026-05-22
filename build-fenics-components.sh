@@ -31,7 +31,7 @@ function build_ffcx() (
 )
 
 function build_backends() (
-    [ -d ffcx-backends ] || git clone https://github.com/fenics-dolfiny/ffcx-backends ffcx-backends
+    [ -d ffcx-backends ] || git clone -b feature/cuda-quad-caching  https://github.com/fenics-dolfiny/ffcx-backends ffcx-backends
     cd ffcx-backends
     pip install --check-build-dependencies -e .
 )
